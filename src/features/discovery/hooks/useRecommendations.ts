@@ -1,0 +1,31 @@
+import { useMemo } from 'react'
+import { SIDEBAR } from '../../../shared/constants/layout'
+import { errorMessage } from '../../../shared/api/query-helpers'
+import { useTrendFeedback } from '../model/trend-feedback'
+import { useGetTrendsQuery, useGetRecommendedUsersInfiniteQuery } from '../api/queries'
+import { type UserShort } from "../../profiles/index";
+import type { TrendRecommendation } from '../types/recommendations'
+
+const EMPTY_TRENDS: TrendRecommendation[] = []
+const EMPTY_USERS: UserShort[] = []
+export function useTrends(limit: number = SIDEBAR.TRENDS_LIMIT) {
+  const query = useGetTrendsQuery(limit)
+  const { hidden } = useTrendFeedback()
+  const trends = useMemo(() => (query.data?.items ?? EMPTY_TRENDS).filter(trend => !Object.hasOwn(hidden, trend.id)), [query.data, hidden])
+  return { trends, isLoading: query.isLoading, error: query.error ? errorMessage(query.error) : null, reload: query.refetch }
+}
+export function useRecommendedUsers(limit: number) {
+  const query = useGetRecommendedUsersInfiniteQuery(limit)
+  const users = useMemo(() => {
+    if (!query.data) return EMPTY_USERS
+    const known = new Set<string>()
+    return query.data.pages.flatMap(page => page.items).filter(user => {
+      if (known.has(user.id)) return false
+      known.add(user.id)
+      return true
+    })
+  }, [query.data])
+  return { users, nextCursor: query.hasNextPage ? query.data?.pages.at(-1)?.nextCursor ?? null : null,
+    isLoading: query.isLoading, isLoadingMore: query.isFetchingNextPage,
+    error: query.error ? errorMessage(query.error) : null, reload: query.refetch, loadMore: query.fetchNextPage }
+}

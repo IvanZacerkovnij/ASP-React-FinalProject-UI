@@ -1,0 +1,317 @@
+import { useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  Image,
+  MessageCircle,
+  Repeat2,
+  Search,
+  UsersRound,
+} from "lucide-react";
+
+import { AuthFooter } from "../../widgets/auth-footer/AuthFooter";
+import { GoogleAuthButton } from "../../features/auth/components/GoogleAuthButton";
+
+import { HeartIcon } from "../../shared/ui/icons";
+
+import { AppLogo } from "../../shared/ui/AppLogo";
+import { Avatar } from "../../shared/ui/Avatar";
+import { Tooltip } from "../../shared/ui/Tooltip";
+
+import { useAutosizeTextarea } from "../../shared/hooks/useAutosizeTextarea";
+
+import { cn } from "../../shared/lib/cn";
+
+import { APP_NAME } from "../../shared/constants/app";
+import { APP_ROUTES } from "../../shared/config/routes";
+
+interface PreviewPostProps {
+  name: string;
+  username: string;
+  time: string;
+  children: string;
+  replies: number;
+  reposts: number;
+  likes: number;
+}
+
+function PreviewPost({
+  name,
+  username,
+  time,
+  children,
+  replies,
+  reposts,
+  likes,
+}: PreviewPostProps) {
+  const navigate = useNavigate();
+  const [reposted, setReposted] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const repostLabel = reposted ? "Скасувати репост" : "Репостнути";
+  const likeLabel = liked ? "Скасувати вподобання" : "Вподобати";
+
+  return (
+    <article className="flex gap-3 border-t border-border px-4 py-4 text-left">
+      <Avatar name={name} fallbackName={username} />
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1 text-sm">
+          <span className="truncate font-bold text-foreground">{name}</span>
+          <span className="truncate text-muted-foreground">@{username}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="shrink-0 text-muted-foreground">{time}</span>
+        </div>
+        <p className="mt-1 text-sm leading-5 text-foreground">{children}</p>
+        <div className="mt-3 flex max-w-xs items-center justify-between text-muted-foreground">
+          <Tooltip label="Коментувати">
+            <button
+              type="button"
+              onClick={() => navigate(APP_ROUTES.LOGIN)}
+              aria-label="Коментувати"
+              className="tweet-action flex items-center gap-1.5 rounded-full p-0.5 text-xs transition-colors hover:text-primary focus-visible:text-primary focus-visible:focus-indicator"
+            >
+              <span className="tweet-action-icon" aria-hidden="true">
+                <MessageCircle className="size-4" />
+              </span>
+              {replies}
+            </button>
+          </Tooltip>
+          <Tooltip label={repostLabel}>
+            <button
+              type="button"
+              onClick={() => setReposted((value) => !value)}
+              aria-label={repostLabel}
+              aria-pressed={reposted}
+              className={cn(
+                "tweet-action flex items-center gap-1.5 rounded-full p-0.5 text-xs transition-colors hover:text-emerald-500 focus-visible:text-emerald-500 focus-visible:focus-indicator",
+                reposted && "text-emerald-500",
+              )}
+            >
+              <span className="tweet-action-icon" aria-hidden="true">
+                <Repeat2 className="size-4" />
+              </span>
+              {reposts + Number(reposted)}
+            </button>
+          </Tooltip>
+          <Tooltip label={likeLabel}>
+            <button
+              type="button"
+              onClick={() => setLiked((value) => !value)}
+              aria-label={likeLabel}
+              aria-pressed={liked}
+              className={cn(
+                "tweet-action flex items-center gap-1.5 rounded-full p-0.5 text-xs transition-colors hover:text-rose-500 focus-visible:text-rose-500 focus-visible:focus-indicator",
+                liked && "text-rose-500",
+              )}
+            >
+              <span className="tweet-action-icon" aria-hidden="true">
+                <HeartIcon className="size-4" filled={liked} />
+              </span>
+              {likes + Number(liked)}
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+const features = [
+  {
+    icon: MessageCircle,
+    title: "Говоріть про важливе",
+    description:
+      "Діліться короткими думками, фото й опитуваннями у момент, коли вони з’являються.",
+  },
+  {
+    icon: UsersRound,
+    title: "Знаходьте своїх людей",
+    description:
+      "Стежте за авторами, друзями й спільнотами, чиї ідеї вам близькі.",
+  },
+  {
+    icon: Search,
+    title: "Будьте в центрі подій",
+    description:
+      "Відкривайте нові теми та долучайтеся до розмов, що відбуваються просто зараз.",
+  },
+] as const;
+
+export default function LandingPage() {
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState("");
+  const draftRef = useRef<HTMLTextAreaElement>(null);
+
+  useAutosizeTextarea(draftRef, draft, 1);
+
+  const publishDraft = () => {
+    if (!draft.trim()) return;
+    navigate(APP_ROUTES.LOGIN);
+  };
+
+  return (
+    <div className="min-h-screen overflow-hidden bg-background text-foreground">
+      <header className="relative z-20 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <AppLogo to={APP_ROUTES.LANDING} />
+
+          <nav
+            className="flex items-center gap-2 sm:gap-3"
+            aria-label="Авторизація"
+          >
+            <Link
+              to={APP_ROUTES.LOGIN}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-border px-4 text-sm font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Увійти
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section className="relative">
+          <div
+            className="pointer-events-none absolute -left-40 top-20 size-96 rounded-full bg-primary/15 blur-3xl"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute -right-40 top-0 size-96 rounded-full bg-primary/10 blur-3xl"
+            aria-hidden="true"
+          />
+
+          <div className="relative mx-auto grid min-w-0 max-w-7xl items-center gap-10 px-4 py-12 sm:gap-14 sm:px-6 sm:py-24 lg:grid-cols-[1.02fr_0.98fr] lg:gap-20 lg:px-8 lg:py-28">
+            <div className="mx-auto min-w-0 max-w-2xl text-center lg:mx-0 lg:text-left">
+              <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.045em] text-balance sm:text-6xl lg:text-7xl">
+                Діліться тим, що{" "}
+                <span className="text-primary">має значення.</span>
+              </h1>
+              <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground text-pretty sm:mt-6 sm:text-xl sm:leading-8 lg:mx-0">
+                {APP_NAME} - простір для живих розмов, нових знайомств і думок,
+                якими хочеться ділитися.
+              </p>
+
+              <div className="mx-auto mt-7 flex w-full min-w-0 max-w-md flex-col gap-3 sm:mt-9 lg:mx-0">
+                <Link
+                  to={APP_ROUTES.REGISTER}
+                  className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-7"
+                >
+                  Створити акаунт
+                  <ArrowRight className="size-5" />
+                </Link>
+                <GoogleAuthButton showDivider={false} />
+              </div>
+            </div>
+
+            <div className="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
+              <div
+                className="absolute -inset-5 -rotate-3 rounded-4xl bg-primary/10"
+                aria-hidden="true"
+              />
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-2xl shadow-primary/10">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                  <span className="text-lg font-extrabold">Головна</span>
+                </div>
+                <div className="flex gap-3 px-4 py-4">
+                  <Avatar name="Ви" />
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3">
+                    <textarea
+                      ref={draftRef}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      rows={1}
+                      maxLength={40}
+                      aria-label="Що нового?"
+                      placeholder="Що нового?"
+                      className="min-w-0 grow basis-24 resize-none bg-transparent text-sm text-foreground outline-none transition-[height] duration-400 ease-out"
+                    />
+                    <div className="ml-auto flex shrink-0 items-center gap-3">
+                      <Tooltip label="Додати зображення">
+                        <button
+                          type="button"
+                          onClick={() => navigate(APP_ROUTES.LOGIN)}
+                          aria-label="Додати зображення"
+                          className="tweet-action flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-primary focus-visible:focus-indicator"
+                        >
+                          <span className="tweet-action-icon" aria-hidden="true">
+                            <Image className="size-5" />
+                          </span>
+                        </button>
+                      </Tooltip>
+                      <button
+                        type="button"
+                        onClick={publishDraft}
+                        disabled={!draft.trim()}
+                        className="cursor-pointer whitespace-nowrap rounded-full bg-primary px-4 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+                      >
+                        Опублікувати
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <PreviewPost
+                  name="Стас Даруйщук"
+                  username="darye_schyk"
+                  time="12 хв"
+                  replies={18}
+                  reposts={42}
+                  likes={286}
+                >
+                  Найкращі ідеї починаються з простої розмови. Розкажіть, над
+                  чим працюєте сьогодні ✨
+                </PreviewPost>
+                <PreviewPost
+                  name="Артік Кривчановський"
+                  username="artik_codes"
+                  time="1 год"
+                  replies={9}
+                  reposts={16}
+                  likes={124}
+                >
+                  Маленький прогрес щодня все одно залишається прогресом.
+                  Продовжуємо 🚀
+                </PreviewPost>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="border-y border-border bg-muted/35">
+          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
+                Ваш простір
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-balance sm:text-4xl">
+                Усе потрібне для справжнього спілкування
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
+              {features.map(({ icon: Icon, title, description }) => (
+                <article
+                  key={title}
+                  className="rounded-2xl border border-border bg-card p-6 transition-transform duration-200 hover:-translate-y-1"
+                >
+                  <div className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="size-5" />
+                  </div>
+                  <h3 className="mt-5 text-xl font-extrabold">{title}</h3>
+                  <p className="mt-2 leading-7 text-muted-foreground">
+                    {description}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+          <AppLogo to={APP_ROUTES.LANDING} className="text-5xl" />
+          <AuthFooter className="text-center [&>div]:justify-center sm:text-right sm:[&>div]:justify-end" />
+        </div>
+      </footer>
+    </div>
+  );
+}

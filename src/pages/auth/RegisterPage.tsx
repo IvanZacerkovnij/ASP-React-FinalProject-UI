@@ -1,0 +1,126 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+
+import { authApi } from "../../features/auth/api/auth.api";
+import { ApiError } from "../../shared/api/api-error";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { registerSchema, type RegisterFormValues } from "../../features/auth/schemas/auth.schema";
+
+import { Input } from "../../shared/ui/Input";
+import { Button } from "../../shared/ui/Button";
+
+import { APP_NAME } from "../../shared/constants/app";
+import { APP_ROUTES } from "../../shared/config/routes";
+
+import { AuthShell } from "../../features/auth/components/AuthShell";
+import { GoogleAuthButton } from "../../features/auth/components/GoogleAuthButton";
+
+export default function RegisterPage() {
+  const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isGoogleBusy, setIsGoogleBusy] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { displayName: "", username: "", email: "", password: "" },
+  });
+
+  const onSubmit = async (values: RegisterFormValues) => {
+    if (isGoogleBusy) return;
+
+    setServerError(null);
+    try {
+      await authApi.register(values);
+      navigate(APP_ROUTES.VERIFY_EMAIL, {
+        state: { email: values.email },
+      });
+    } catch (err) {
+      setServerError(
+        err instanceof ApiError
+          ? err.message
+          : "Не вдалося зареєструватися. Спробуйте пізніше.",
+      );
+    }
+  };
+
+  return (
+    <AuthShell
+      title="Створити акаунт"
+      subtitle={`Приєднуйтесь до ${APP_NAME} за кілька секунд.`}
+      footer={
+        <span>
+          Вже маєте акаунт?{" "}
+          <Link
+            to={APP_ROUTES.LOGIN}
+            className="font-semibold text-primary hover:underline"
+          >
+            Увійти
+          </Link>
+        </span>
+      }
+    >
+      <GoogleAuthButton
+        mode="signup"
+        disabled={isSubmitting}
+        onBusyChange={setIsGoogleBusy}
+      />
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+        noValidate
+      >
+        {serverError && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {serverError}
+          </p>
+        )}
+
+        <Input
+          label="Ім'я"
+          type="text"
+          autoComplete="name"
+          placeholder="Ваше ім'я"
+          error={errors.displayName?.message}
+          {...register("displayName")}
+        />
+        <Input
+          label="Нікнейм"
+          type="text"
+          autoComplete="username"
+          placeholder="username"
+          error={errors.username?.message}
+          {...register("username")}
+        />
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          error={errors.email?.message}
+          {...register("email")}
+        />
+        <Input
+          label="Пароль"
+          type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          error={errors.password?.message}
+          {...register("password")}
+        />
+
+        <Button type="submit" size="lg" fullWidth isLoading={isSubmitting} disabled={isGoogleBusy}>
+          Зареєструватися
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}

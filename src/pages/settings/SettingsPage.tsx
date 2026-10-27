@@ -1,0 +1,174 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { LockKeyhole, Palette, UserRound, ArrowRight } from "lucide-react";
+
+import { userApi } from "../../features/profiles/api/user.api";
+import type { UpdateProfileRequest } from "../../features/profiles/api/user.api";
+
+import { useAuth } from "../../features/auth/hooks/useAuth";
+import { useTheme } from "../../features/preferences/hooks/useTheme";
+
+import EditProfileModal from "../../features/profiles/components/modal/EditProfileModal";
+import PageHeader from "../../widgets/navigation/pageHeader/PageHeader";
+import { AccountConnections } from "../../features/auth/components/AccountConnections";
+import RightSidebarFooterLinks from "../../widgets/navigation/desktop/rightSidebar/RightSidebarFooterLinks";
+
+import { THEME_OPTIONS } from "../../shared/constants/theme";
+import { APP_NAME } from "../../shared/constants/app";
+import { APP_ROUTES } from "../../shared/config/routes";
+import { AppLogo } from "../../shared/ui/AppLogo";
+
+import { cn } from "../../shared/lib/cn";
+
+export default function SettingsPage({
+  variant = "main",
+}: {
+  variant?: "main" | "admin";
+}) {
+  const { user, updateUser: updateAuthUser } = useAuth();
+  const { theme, setTheme } = useTheme();
+
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+
+  const handleUpdateProfile = async (data: UpdateProfileRequest) => {
+    const updatedUser = await userApi.updateProfile(data);
+    updateAuthUser(updatedUser);
+  };
+
+  if (!user) return null;
+
+  return (
+    <>
+      <section
+        className={cn(
+          "w-full bg-background",
+          variant === "main" && "max-w-3xl border-r border-border",
+          variant === "admin" && "mx-auto max-w-3xl",
+        )}
+      >
+        {variant === "main" ? (
+          <PageHeader title="Налаштування" />
+        ) : (
+          <header>
+            <h1 className="text-xl font-bold sm:text-2xl">Налаштування</h1>
+          </header>
+        )}
+
+        <div className="mx-auto w-full max-w-2xl px-4 py-6">
+          <p className="mb-6 text-sm text-muted-foreground">
+            Керуйте виглядом профілю та налаштуваннями {APP_NAME}.
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-border bg-background">
+            {/* Appearance */}
+            <section className="border-b border-border p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                  <Palette className="size-5" />
+                </div>
+
+                <div>
+                  <h2 className="font-semibold">Тема</h2>
+
+                  <p className="text-sm text-muted-foreground">
+                    Оберіть вигляд застосунку
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTheme(value)}
+                    className={cn(
+                      "flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-xs transition sm:flex-row sm:gap-2 sm:px-3 sm:text-sm",
+                      "dark:focus-visible:focus-indicator",
+                      theme === value
+                        ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
+                        : "border-border hover:bg-muted dark:border-control-border dark:hover:bg-surface-hover dark:active:bg-muted",
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="max-w-full truncate">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Account */}
+            <section className="p-5">
+              <div className="mb-4">
+                <h2 className="font-semibold">Акаунт</h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Керуйте інформацією та безпекою свого акаунта.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                {/* Edit profile */}
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileOpen(true)}
+                  className="flex w-full items-center justify-between rounded-xl p-3 text-left transition hover:bg-muted cursor-pointer dark:hover:bg-surface-hover dark:active:bg-muted dark:focus-visible:focus-indicator"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                      <UserRound className="size-5" />
+                    </div>
+
+                    <div>
+                      <h2 className="font-semibold">Редагувати профіль</h2>
+
+                      <p className="text-sm text-muted-foreground">
+                        Ім'я, опис, локація та фото профілю
+                      </p>
+                    </div>
+                  </div>
+
+                  <ArrowRight className="size-4" />
+                </button>
+
+                {/* Change password */}
+                <Link
+                  to={APP_ROUTES.SETTINGS_CHANGE_PASSWORD}
+                  className="flex items-center justify-between rounded-xl p-3 transition hover:bg-muted dark:hover:bg-surface-hover dark:active:bg-muted dark:focus-visible:focus-indicator"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                      <LockKeyhole className="size-5" />
+                    </div>
+
+                    <div>
+                      <h2 className="font-semibold">Змінити пароль</h2>
+
+                      <p className="text-sm text-muted-foreground">
+                        Оновіть пароль свого акаунта
+                      </p>
+                    </div>
+                  </div>
+
+                  <ArrowRight className="size-4" />
+                </Link>
+              </div>
+            </section>
+            <AccountConnections key={user.id} />
+          </div>
+          <div className="mt-8 border-t border-border pt-8 lg:hidden">
+            <AppLogo className="mx-auto block w-fit text-5xl" />
+            <RightSidebarFooterLinks className="mt-4 text-center [&>div]:justify-center" />
+          </div>
+        </div>
+      </section>
+
+      <EditProfileModal
+        open={isEditProfileOpen}
+        user={user}
+        onClose={() => setIsEditProfileOpen(false)}
+        onSave={handleUpdateProfile}
+      />
+    </>
+  );
+}

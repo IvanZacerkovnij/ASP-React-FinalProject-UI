@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./shared-ui.css";
 
 @layer base {
 :root {
@@ -20,5 +21,15 @@ button, input, textarea, select { font: inherit; }
 .app-shell { max-width: 680px; margin: 0 auto; padding: 24px; }
 .app-header { padding-bottom: 24px; border-bottom: 1px solid #333; }
 .app-header a { font-weight: 700; text-decoration: none; }
-main { padding-block: 24px; }
+.app-shell main { padding-block: 24px; }
+
+.z-poll-overlay, .z-thread { z-index: 10; }
+.z-content { z-index: 20; }
+.z-header { z-index: 50; }
+.z-bottom-navigation { z-index: 60; }
+.z-sidebar { z-index: 65; }
+.z-media-viewer { z-index: 100; }
+.z-media-controls { z-index: 110; }
+.z-modal { z-index: 200; }
+.z-nested-modal { z-index: 205; }
 }

@@ -1,0 +1,148 @@
+import { useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+
+import { useSearch } from "../../features/discovery/hooks/useSearch";
+
+import { Spinner } from "../../shared/ui/Spinner";
+import { PaginationControls } from "../../shared/ui/PaginationControls";
+import Tab from "../../shared/ui/Tab";
+
+import AdvancedSearchModal from "../../features/discovery/components/search/AdvancedSearchModal";
+import SearchPageSearchBox from "../../features/discovery/components/search/SearchPageSearchBox";
+import PageHeader from "../../widgets/navigation/pageHeader/PageHeader";
+import TweetCard from "../../features/content/components/tweet/TweetCard";
+import UserListItem from "../../features/profiles/components/user/UserListItem";
+
+import { APP_ROUTES } from "../../shared/config/routes";
+
+import { useAuth } from "../../features/auth/hooks/useAuth";
+
+import {
+  criteriaForType,
+  hasActiveSearchCriteria,
+  hasNonDefaultFilters,
+  parseSearchCriteria,
+} from "../../features/discovery/lib/search";
+
+import type { SearchCriteria } from "../../features/discovery/types/search";
+import type { SearchType } from "../../features/discovery/types/search";
+
+const SEARCH_TYPES: Array<{ value: SearchType; label: string }> = [
+  { value: "posts", label: "Пости" },
+  { value: "users", label: "Користувачі" },
+];
+
+export default function SearchPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const criteria = useMemo(
+    () => parseSearchCriteria(searchParams),
+    [searchParams],
+  );
+  const query = criteria.query;
+  const activeType = criteria.type;
+
+  const { users, posts, isLoading, error, pagination } = useSearch(criteria);
+
+  const hasCriteria = hasActiveSearchCriteria(criteria);
+  const activeResultsCount = activeType === "posts" ? posts.length : users.length;
+
+  const switchType = (type: SearchType) => {
+    navigate(APP_ROUTES.search(criteriaForType(criteria, type)), {
+      replace: true,
+    });
+  };
+
+  const emptyMessage = !hasCriteria
+    ? "Введіть запит, щоб знайти пости або користувачів."
+    : activeType === "posts"
+      ? "Пости за цим запитом не знайдені."
+      : "Користувачів за цим запитом не знайдено.";
+
+  return (
+    <section className="w-full max-w-3xl border-r border-border bg-background">
+      <PageHeader
+        backTo={APP_ROUTES.HOME}
+        content={
+          <SearchPageSearchBox key={query} query={query} criteria={criteria} />
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            aria-label="Фільтри пошуку"
+            className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          >
+            <SlidersHorizontal className="size-5" />
+            {hasNonDefaultFilters(criteria) && (
+              <span className="absolute right-1 top-1 size-2 rounded-full bg-primary" />
+            )}
+          </button>
+        }
+        footer={
+          <nav className="flex" aria-label="Тип пошуку">
+            {SEARCH_TYPES.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => switchType(type.value)}
+                className="flex flex-1 cursor-pointer justify-center rounded-t-sm px-4 pt-3 transition-colors hover:bg-muted dark:hover:bg-surface-hover dark:active:bg-muted dark:focus-visible:focus-indicator"
+              >
+                <Tab active={activeType === type.value}>{type.label}</Tab>
+              </button>
+            ))}
+          </nav>
+        }
+      />
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner variant="inline" />
+        </div>
+      ) : error ? (
+        <p className="px-4 py-10 text-center text-sm text-destructive">
+          {error}
+        </p>
+      ) : activeResultsCount === 0 ? (
+        <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+      ) : activeType === "posts" ? (
+        <div className="divide-y divide-border">
+          {posts.map((tweet) => (
+            <TweetCard key={tweet.id} tweet={tweet} />
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {users.map((user) => (
+            <UserListItem key={user.id} user={user} />
+          ))}
+        </div>
+      )}
+
+      <PaginationControls {...pagination} />
+      {filtersOpen && (
+        <AdvancedSearchModal
+          criteria={criteria}
+          viewerHasLocation={Boolean(user?.location)}
+          onApply={(next: SearchCriteria) => {
+            const nextPath = APP_ROUTES.search(next);
+
+            if (nextPath !== `${location.pathname}${location.search}`) {
+              navigate(nextPath);
+            }
+
+            setFiltersOpen(false);
+          }}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
+    </section>
+  );
+}

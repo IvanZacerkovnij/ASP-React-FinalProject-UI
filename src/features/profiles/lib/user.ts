@@ -1,0 +1,18 @@
+import type { User } from "../types/user";
+import type { UserShort } from "../types/user";
+import { type Tweet } from "../../content/index";
+
+export function toTweetAuthor(user: User): Tweet["author"] {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl ?? null,
+    isVerified: user.isVerified,
+    role: user.role,
+  };
+}
+
+export function toUserShort(user: User): UserShort {
+  return { ...toTweetAuthor(user), bio: user.bio, location: user.location };
+}

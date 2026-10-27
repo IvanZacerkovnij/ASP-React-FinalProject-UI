@@ -6,8 +6,21 @@ type HttpClientOptions = {
   getHeaders?: () => HeadersInit | Promise<HeadersInit>
 }
 
+export interface TransportSession {
+  id: string
+  accessToken: string | null
+}
+
+export interface AuthTransport {
+  capture: () => TransportSession
+  isCurrent: (session: TransportSession) => boolean
+  refresh: (session: TransportSession) => Promise<void>
+  unauthorized: (session: TransportSession) => void
+}
+
 type RequestOptions = Omit<RequestInit, 'body' | 'method'> & {
   body?: unknown
+  skipAuth?: boolean
 }
 
 async function readResponse(response: Response): Promise<unknown> {
@@ -18,13 +31,20 @@ async function readResponse(response: Response): Promise<unknown> {
 }
 
 export function createHttpClient(options: HttpClientOptions) {
+  let authentication: AuthTransport | undefined
   async function request<ResponseData = unknown>(
     method: string,
     path: string,
-    { body, headers: requestHeaders, ...init }: RequestOptions = {},
+    { body, headers: requestHeaders, skipAuth = false, ...init }: RequestOptions = {},
   ): Promise<ResponseData> {
+    const auth = skipAuth ? undefined : authentication
+    const session = auth?.capture()
+    const assertCurrent = () => {
+      init.signal?.throwIfAborted()
+      if (session && !auth?.isCurrent(session)) throw new DOMException('Сесію змінено.', 'AbortError')
+    }
     try {
-      if (!options.baseUrl) throw new ApiError('VITE_API_BASE_URL is not configured.')
+      if (!options.baseUrl) throw new ApiError('Сервер API не налаштовано.')
       if (!path.startsWith('/') || path.startsWith('//')) {
         throw new ApiError('API paths must start with a single slash.')
       }
@@ -37,25 +57,40 @@ export function createHttpClient(options: HttpClientOptions) {
         headers.set('Content-Type', 'application/json')
       }
 
-      const response = await fetch(`${options.baseUrl.replace(/\/+$/, '')}${path}`, {
-        credentials: options.credentials,
-        ...init,
-        method,
-        headers,
-        body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
-      })
+      const send = () => {
+        assertCurrent()
+        const token = auth?.capture().accessToken
+        if (token) headers.set('Authorization', `Bearer ${token}`)
+        return fetch(`${options.baseUrl!.replace(/\/+$/, '')}${path}`, {
+          credentials: options.credentials,
+          ...init,
+          method,
+          headers,
+          body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+        })
+      }
+      let response = await send()
+      assertCurrent()
+      if (response.status === 401 && session?.accessToken && auth) {
+        await auth.refresh(session)
+        assertCurrent()
+        response = await send()
+      }
       let details: unknown
       try {
         details = await readResponse(response)
       } catch (cause) {
         if (init.signal?.aborted) throw cause
-        throw new ApiError('The API returned an invalid response.', { status: response.status, cause })
+        throw new ApiError('Сервер повернув некоректну відповідь.', { status: response.status, cause })
       }
 
+      assertCurrent()
       if (!response.ok) {
-        throw new ApiError(getErrorMessage(details, `Request failed (${response.status}).`), {
+        if (response.status === 401 && session?.accessToken) auth?.unauthorized(session)
+        throw new ApiError(getErrorMessage(details, `Не вдалося виконати запит (${response.status}).`), {
           status: response.status,
           details,
+          retryAfter: response.headers.get('Retry-After'),
         })
       }
 
@@ -63,11 +98,16 @@ export function createHttpClient(options: HttpClientOptions) {
     } catch (cause) {
       if (init.signal?.aborted || (cause instanceof Error && cause.name === 'AbortError')) throw cause
       if (cause instanceof ApiError) throw cause
-      throw new ApiError('Unable to complete the API request.', { cause })
+      throw new ApiError('Не вдалося виконати запит. Перевірте з’єднання.', { cause })
     }
   }
 
   return {
+    getSessionId: () => authentication?.capture().id,
+    configureAuth: (auth: AuthTransport) => {
+      authentication = auth
+      return () => { if (authentication === auth) authentication = undefined }
+    },
     get: <ResponseData = unknown>(path: string, init?: RequestOptions) => request<ResponseData>('GET', path, init),
     post: <ResponseData = unknown>(path: string, init?: RequestOptions) => request<ResponseData>('POST', path, init),
     put: <ResponseData = unknown>(path: string, init?: RequestOptions) => request<ResponseData>('PUT', path, init),

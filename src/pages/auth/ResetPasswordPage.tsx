@@ -1,0 +1,152 @@
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { authApi } from "../../features/auth/api/auth.api";
+import { ApiError } from "../../shared/api/api-error";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  resetPasswordSchema,
+  type ResetPasswordFormValues,
+} from "../../features/auth/schemas/auth.schema";
+
+import { APP_ROUTES } from "../../shared/config/routes";
+
+import { Input } from "../../shared/ui/Input";
+import { Button } from "../../shared/ui/Button";
+
+import { AuthShell } from "../../features/auth/components/AuthShell";
+
+interface LocationState {
+  email?: string;
+  code?: string;
+  currentPassword?: string;
+}
+
+interface ResetPasswordPageProps {
+  variant?: "auth" | "settings";
+}
+
+export default function ResetPasswordPage({
+  variant = "auth",
+}: ResetPasswordPageProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isSettings = variant === "settings";
+  const { email, code } = (location.state as LocationState) ?? {};
+
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const missingState = !email || !code;
+  useEffect(() => {
+    if (isSettings)
+      navigate(APP_ROUTES.SETTINGS_CHANGE_PASSWORD, { replace: true });
+    else if (missingState)
+      navigate(isSettings ? APP_ROUTES.SETTINGS : APP_ROUTES.FORGOT_PASSWORD, {
+        replace: true,
+      });
+  }, [missingState, isSettings, navigate]);
+  if (isSettings || missingState) return null;
+
+  const onSubmit = async (values: ResetPasswordFormValues) => {
+    setServerError(null);
+
+    try {
+      await authApi.resetPassword({
+        email: email!,
+        code: code!,
+        newPassword: values.password,
+      });
+
+      navigate(APP_ROUTES.LOGIN, { replace: true });
+    } catch (error) {
+      setServerError(
+        error instanceof ApiError
+          ? error.message
+          : "Не вдалося змінити пароль. Спробуйте ще раз.",
+      );
+    }
+  };
+
+  const title = "Новий пароль";
+  const subtitle = isSettings
+    ? "Введіть новий пароль для вашого акаунта, щоб завершити зміну."
+    : "Введіть новий пароль для вашого акаунта.";
+
+  const footer = isSettings ? (
+    <button
+      type="button"
+      onClick={() => navigate(APP_ROUTES.SETTINGS)}
+      className="font-semibold text-primary hover:underline cursor-pointer bg-transparent border-0"
+    >
+      Назад до налаштувань
+    </button>
+  ) : (
+    <>
+      <span>Згадали пароль?</span>{" "}
+      <button
+        type="button"
+        onClick={() => navigate(APP_ROUTES.LOGIN)}
+        className="font-semibold text-primary hover:underline cursor-pointer bg-transparent border-0"
+      >
+        Увійти
+      </button>
+    </>
+  );
+
+  return (
+    <AuthShell title={title} subtitle={subtitle} footer={footer}>
+      {serverError && (
+        <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Input
+          label="Новий пароль"
+          type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          error={errors.password?.message}
+          {...register("password")}
+          disabled={isSubmitting}
+        />
+
+        <Input
+          label="Підтвердження пароля"
+          type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          error={errors.confirmPassword?.message}
+          {...register("confirmPassword")}
+          disabled={isSubmitting}
+        />
+
+        <Button
+          type="submit"
+          size="lg"
+          fullWidth
+          isLoading={isSubmitting}
+        >
+          Змінити пароль
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}

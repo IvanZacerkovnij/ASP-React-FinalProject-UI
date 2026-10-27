@@ -1,0 +1,106 @@
+import { Navigate, useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+import PageHeader from "../../widgets/navigation/pageHeader/PageHeader";
+import RecommendationUserItem from "../../features/profiles/components/user/RecommendationUserItem";
+
+import { useRecommendedUsers } from "../../features/discovery/hooks/useRecommendations";
+
+import { Button } from "../../shared/ui/Button";
+
+import { APP_ROUTES } from "../../shared/config/routes";
+import { RECOMMENDATIONS_PAGE_LIMIT } from "../../features/discovery/constants/recommendations";
+
+export default function FollowRecommendationsPage() {
+  const [searchParams] = useSearchParams();
+  if (searchParams.get("tab") === "trends") {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", "trending");
+
+    return (
+      <Navigate
+        to={{ pathname: APP_ROUTES.EXPLORE, search: `?${params}` }}
+        replace
+      />
+    );
+  }
+
+  return <RecommendedAuthors />;
+}
+
+function RecommendedAuthors() {
+  const {
+    users,
+    nextCursor,
+    isLoading,
+    isLoadingMore,
+    error,
+    reload,
+    loadMore,
+  } = useRecommendedUsers(RECOMMENDATIONS_PAGE_LIMIT);
+
+  return (
+    <section className="w-full max-w-3xl border-r border-border bg-background">
+      <PageHeader title="Рекомендації" backTo={APP_ROUTES.HOME} />
+
+      <div className="py-3">
+        {isLoading ? (
+          <div
+            className="flex justify-center py-14"
+            aria-label="Завантаження рекомендацій"
+          >
+            <Loader2 className="size-6 animate-spin text-primary" />
+          </div>
+        ) : error && users.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void reload()}
+              className="mt-4"
+            >
+              Спробувати ще раз
+            </Button>
+          </div>
+        ) : users.length === 0 ? (
+          <p className="px-4 py-12 text-center text-sm text-muted-foreground">
+            Поки що рекомендацій немає.
+          </p>
+        ) : (
+          <>
+            <div>
+              {users.map((user) => (
+                <RecommendationUserItem key={user.id} user={user} />
+              ))}
+            </div>
+
+            {error && (
+              <p
+                className="px-4 pt-4 text-center text-sm text-destructive"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
+
+            {nextCursor && (
+              <div className="flex justify-center px-4 py-5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void loadMore()}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore && <Loader2 className="size-4 animate-spin" />}
+                  Показати ще
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}

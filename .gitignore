@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+docs/
+TwitterClone-main-2/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,56 @@
+import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+import PageHeader from "../navigation/pageHeader/PageHeader";
+
+import { APP_ROUTES } from "../../shared/config/routes";
+
+import { Button } from "../../shared/ui/Button";
+import { VerifiedBadge } from "../../features/profiles/components/VerifiedBadge";
+
+import { formatPostCount } from "../../shared/lib/format";
+
+import type { User } from "../../features/profiles/types/user";
+
+interface ProfileHeaderProps {
+  user: User;
+}
+
+export default function ProfileHeader({ user }: ProfileHeaderProps) {
+  const navigate = useNavigate();
+  const displayName = user.displayName?.trim() || `@${user.username}`;
+
+  const searchUserPosts = () => {
+    navigate(
+      APP_ROUTES.search({
+        type: "posts",
+        from: user.username,
+      }),
+    );
+  };
+
+  return (
+    <PageHeader
+      title={
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="truncate">{displayName}</span>
+          <VerifiedBadge user={user} size={19} />
+        </span>
+      }
+      subtitle={formatPostCount(user.postsCount)}
+      backTo={APP_ROUTES.HOME}
+      actions={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={searchUserPosts}
+          aria-label={`Шукати дописи @${user.username}`}
+          className="shrink-0 cursor-pointer"
+        >
+          <Search className="size-5" aria-hidden="true" />
+        </Button>
+      }
+    />
+  );
+}

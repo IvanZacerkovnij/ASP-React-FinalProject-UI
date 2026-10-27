@@ -1,0 +1,5 @@
+export type { SearchCriteria } from "./types/search"
+export type { SearchViewerContext } from "./types/search"
+export { ExploreSection } from "./components/explore/ExploreSection"
+export { useRecommendedPosts } from "./hooks/useRecommendedPosts"
+export { TrendFeedbackProvider } from "./components/TrendFeedbackProvider"

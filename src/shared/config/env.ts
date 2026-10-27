@@ -1,5 +1,25 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+import { readEnvironment } from './read-env'
 
-export const env = Object.freeze({
-  apiBaseUrl: apiBaseUrl ? apiBaseUrl.replace(/\/+$/, '') : undefined,
+export const env = readEnvironment({
+  VITE_PATH_TO_SERVER: import.meta.env.VITE_PATH_TO_SERVER,
+  VITE_PATH_TO_API: import.meta.env.VITE_PATH_TO_API,
+  VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
+  VITE_APP_LOCALE: import.meta.env.VITE_APP_LOCALE,
+  VITE_GOOGLE_CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+  VITE_MOCK_USER_ROLE: import.meta.env.VITE_MOCK_USER_ROLE,
+  VITE_MAX_TWEET_LENGTH: import.meta.env.VITE_MAX_TWEET_LENGTH,
+  VITE_MAX_NAME_LENGTH: import.meta.env.VITE_MAX_NAME_LENGTH,
+  VITE_MAX_BIO_LENGTH: import.meta.env.VITE_MAX_BIO_LENGTH,
+  VITE_MAX_MEDIA_ATTACHMENTS: import.meta.env.VITE_MAX_MEDIA_ATTACHMENTS,
+  VITE_MAX_IMAGE_SIZE_MB: import.meta.env.VITE_MAX_IMAGE_SIZE_MB,
+  VITE_MAX_VIDEO_SIZE_MB: import.meta.env.VITE_MAX_VIDEO_SIZE_MB,
+  VITE_MAX_GIF_SIZE_MB: import.meta.env.VITE_MAX_GIF_SIZE_MB,
+  VITE_IMAGE_MAX_WIDTH: import.meta.env.VITE_IMAGE_MAX_WIDTH,
+  VITE_IMAGE_QUALITY: import.meta.env.VITE_IMAGE_QUALITY,
+  VITE_ENABLE_IMAGE_UPLOAD: import.meta.env.VITE_ENABLE_IMAGE_UPLOAD,
+  VITE_ENABLE_VIDEO_UPLOAD: import.meta.env.VITE_ENABLE_VIDEO_UPLOAD,
+  VITE_ENABLE_LINK_PREVIEWS: import.meta.env.VITE_ENABLE_LINK_PREVIEWS,
+  VITE_ENABLE_GIFS: import.meta.env.VITE_ENABLE_GIFS,
+  VITE_ENABLE_POLLS: import.meta.env.VITE_ENABLE_POLLS,
+  VITE_ENABLE_LOCATION: import.meta.env.VITE_ENABLE_LOCATION,
 })

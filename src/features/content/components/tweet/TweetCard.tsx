@@ -1,0 +1,304 @@
+import { memo, useState } from "react";
+import { PaginationControls } from "../../../../shared/ui/PaginationControls";
+import { Link, useNavigate } from "react-router-dom";
+import { Repeat2 } from "lucide-react";
+
+import {
+  targetOf,
+  useDeletePostMutation,
+  useUpdatePostMutation,
+  errorMessage,
+} from "../../api/queries";
+
+import { useAuth } from "../../../auth/index";
+import { useTweetLike } from "../../hooks/useTweetLike";
+import { useTweetRepost } from "../../hooks/useTweetRepost";
+import { useTweetBookmark } from "../../hooks/useTweetBookmark";
+import { useTweetComments } from "../../hooks/useTweetComments";
+import { useClickOrDrag } from "../../../../shared/hooks/useClickOrDrag";
+
+import EditHistoryModal from "../modal/EditHistoryModal";
+import EditModal from "../modal/EditModal";
+import QuoteModal from "../modal/QuoteModal";
+import CommentModal from "../modal/CommentModal";
+
+import { Avatar } from "../../../../shared/ui/Avatar";
+import { DefaultReportModal as ReportModal } from "../../../moderation/index";
+
+import TweetHeader from "./TweetHeader";
+import TweetActions from "./TweetActions";
+import TweetComments from "./TweetComments";
+import TweetContent from "./TweetContent";
+
+import { APP_ROUTES } from "../../../../shared/config/routes";
+import { mapMediaToComposerMedia } from "../../lib/mappers";
+import { mapPollToComposerPoll } from "../../lib/mappers";
+import { cn } from "../../../../shared/lib/cn";
+import { getReplyToUsername } from "../../lib/ancestors";
+
+import type { Tweet } from "../../types/tweet";
+import type { ComposerSubmitData } from "../../types/composer";
+import { type User } from "../../../profiles/index";
+
+interface TweetCardProps {
+  tweet: Tweet;
+  navigateToPost?: boolean;
+  commentsInitiallyOpen?: boolean;
+  className?: string;
+  variant?: "feed" | "post";
+  repostedBy?: Pick<User, "username" | "displayName">;
+  showReplyContext?: boolean;
+  onOpenReplyModal?: (comment: Tweet) => void;
+  onDelete?: (tweetId: string) => Promise<void>;
+  onUpdate?: (
+    tweetId: string,
+    data: ComposerSubmitData,
+  ) => Promise<boolean | Tweet>;
+}
+
+function TweetCard({
+  tweet,
+  navigateToPost = true,
+  commentsInitiallyOpen = false,
+  className,
+  variant = "feed",
+  repostedBy,
+  showReplyContext = false,
+  onOpenReplyModal,
+  onDelete,
+  onUpdate,
+}: TweetCardProps) {
+  const navigate = useNavigate();
+  const [deletePost, deletion] = useDeletePostMutation();
+  const [updatePost, update] = useUpdatePostMutation();
+  const { user } = useAuth();
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [commentModalTarget, setCommentModalTarget] = useState<Tweet | null>(
+    null,
+  );
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isEditHistoryOpen, setIsEditHistoryOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
+  const isOwnTweet = user?.id === tweet.author.id;
+  const showReply = showReplyContext && tweet.isComment;
+  const replyToUsername = showReply ? getReplyToUsername(tweet) : null;
+  const replyToFallbackHref = showReply && !replyToUsername
+    ? APP_ROUTES.post(tweet.parentCommentId ?? tweet.postId ?? tweet.id)
+    : undefined;
+
+  const handleDelete = async () => {
+    try {
+      if (onDelete) await onDelete(tweet.id);
+      else await deletePost(targetOf(tweet)).unwrap();
+
+      if (variant === "post") navigate(APP_ROUTES.HOME);
+    } catch (error) {
+      console.error("Failed to delete tweet", error);
+    }
+  };
+
+  const handleUpdate = async (data: ComposerSubmitData) => {
+    try {
+      const result = onUpdate
+        ? await onUpdate(tweet.id, data)
+        : await updatePost({ ...targetOf(tweet), data }).unwrap();
+
+      if (result === false) throw new Error("Не вдалося оновити матеріал.");
+      const updatedTweet = result === true ? { ...tweet, ...data } : result;
+
+      return updatedTweet;
+    } catch (error) {
+      console.error("Failed to update tweet", error);
+      throw error;
+    }
+  };
+
+  const like = useTweetLike(tweet);
+  const repost = useTweetRepost(tweet);
+  const bookmark = useTweetBookmark(tweet);
+
+  const rootPostId = tweet.isComment ? tweet.postId : tweet.id;
+
+  const comments = useTweetComments({
+    postId: rootPostId ?? tweet.id,
+    parentCommentId: tweet.isComment ? tweet.id : null,
+    initialCount: tweet.repliesCount,
+    initiallyOpen: commentsInitiallyOpen,
+  });
+
+  const openCommentModal = (comment: Tweet | null = null) => {
+    setCommentModalTarget(comment);
+    setIsCommentModalOpen(true);
+  };
+
+  const closeCommentModal = () => {
+    setIsCommentModalOpen(false);
+    setCommentModalTarget(null);
+  };
+
+  const handleOpenReplyModal = () => {
+    if (onOpenReplyModal) {
+      onOpenReplyModal(tweet);
+      return;
+    }
+
+    openCommentModal(tweet);
+  };
+
+  const clickOrDragHandlers = useClickOrDrag(() => {
+    if (!navigateToPost || isCommentModalOpen || isQuoteModalOpen) return;
+
+    navigate(APP_ROUTES.post(tweet.id));
+  });
+
+  return (
+    <>
+      <article
+        {...(navigateToPost ? clickOrDragHandlers : {})}
+        className={cn(
+          "grid grid-cols-[40px_minmax(0,1fr)] gap-x-3 border-b border-border px-4 py-3 transition-colors",
+          navigateToPost && "cursor-pointer hover:bg-muted/40 dark:hover:bg-row-hover dark:active:bg-muted",
+          className,
+        )}
+      >
+        {repostedBy && (
+          <>
+            <div className="flex justify-end pb-1 text-muted-foreground">
+              <Repeat2 size={16} aria-hidden="true" />
+            </div>
+
+            <div className="min-w-0 pb-1 text-xs font-semibold text-muted-foreground">
+              <Link
+                to={APP_ROUTES.profile(repostedBy.username)}
+                className="hover:underline"
+              >
+                {repostedBy.displayName || `@${repostedBy.username}`} reposted
+              </Link>
+            </div>
+          </>
+        )}
+
+        <div className="flex justify-center">
+          <Avatar
+            userId={tweet.author.id}
+            name={tweet.author.displayName}
+            fallbackName={tweet.author.username}
+            src={tweet.author.avatarUrl}
+            className="size-11 shrink-0"
+          />
+        </div>
+
+        <div className="min-w-0">
+          <TweetHeader
+            onReport={
+              user && !isOwnTweet ? () => setIsReportOpen(true) : undefined
+            }
+            author={tweet.author}
+            createdAt={tweet.createdAt}
+            updatedAt={tweet.updatedAt}
+            replyToUsername={replyToUsername}
+            replyToLabel="У відповідь"
+            replyToFallbackHref={replyToFallbackHref}
+            onDelete={isOwnTweet ? handleDelete : undefined}
+            onEdit={isOwnTweet ? () => setIsEditModalOpen(true) : undefined}
+            onOpenEditHistory={
+              variant === "post" && !navigateToPost && tweet.updatedAt
+                ? () => setIsEditHistoryOpen(true)
+                : undefined
+            }
+          />
+
+          <TweetContent tweet={tweet} />
+
+          <TweetActions
+            likedByMe={like.likedByMe}
+            likesCount={like.likesCount}
+            repostedByMe={repost.repostedByMe}
+            repliesCount={comments.commentsCount}
+            retweetsCount={repost.repostsCount}
+            viewsCount={tweet.viewsCount}
+            bookmarkedByMe={bookmark.bookmarkedByMe}
+            onComment={handleOpenReplyModal}
+            onRepost={repost.toggleRepost}
+            onQuote={() => setIsQuoteModalOpen(true)}
+            repostPending={repost.pending}
+            onLike={like.toggleLike}
+            likePending={like.pending}
+            bookmarkPending={bookmark.pending}
+            onBookmark={bookmark.toggleBookmark}
+          />
+          {(deletion.error || update.error || like.error || repost.error || bookmark.error) && <p role="alert" className="mt-2 text-sm text-destructive">
+            {errorMessage(deletion.error || update.error || like.error || repost.error || bookmark.error)}
+          </p>}
+        </div>
+      </article>
+
+      {variant === "post" && !navigateToPost && comments.open && (
+        <>
+        <TweetComments
+          comments={comments.comments}
+          isLoading={comments.isLoading}
+          isSubmitting={comments.isSubmitting}
+          error={comments.error}
+          replyingToUsername={tweet.author.username}
+          parentCommentId={tweet.isComment ? tweet.id : null}
+          threadAuthorId={tweet.author.id}
+          onSubmit={comments.createComment}
+          renderComment={(comment, commentClassName) => <TweetCard
+            tweet={comment} variant="feed" navigateToPost className={commentClassName}
+            onDelete={comments.deleteComment} onUpdate={comments.updateComment} onOpenReplyModal={openCommentModal}
+          />}
+        />
+        <PaginationControls {...comments.pagination} />
+        </>
+      )}
+
+      <EditModal
+        open={isEditModalOpen}
+        title="Редагувати пост"
+        initialContent={tweet.content}
+        initialMedia={mapMediaToComposerMedia(tweet.attachments)}
+        initialPoll={mapPollToComposerPoll(tweet.poll)}
+        initialLocation={tweet.location}
+        initialLinkPreview={tweet.linkPreview}
+        initialQuote={tweet.quote}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleUpdate}
+      />
+
+      <CommentModal
+        open={isCommentModalOpen}
+        tweet={tweet}
+        replyTo={commentModalTarget}
+        onClose={closeCommentModal}
+        onSubmit={comments.createComment}
+        isSubmitting={comments.isSubmitting}
+      />
+
+      <QuoteModal
+        open={isQuoteModalOpen}
+        tweet={tweet}
+        repostedByMe={repost.repostedByMe}
+        onEnsureRepost={repost.ensureReposted}
+        onClose={() => setIsQuoteModalOpen(false)}
+      />
+
+      <EditHistoryModal
+        open={isEditHistoryOpen}
+        tweet={tweet}
+        onClose={() => setIsEditHistoryOpen(false)}
+      />
+      {isReportOpen && (
+        <ReportModal
+          targetType={tweet.isComment ? "comments" : "posts"}
+          targetId={tweet.id}
+          onClose={() => setIsReportOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+export default memo(TweetCard);

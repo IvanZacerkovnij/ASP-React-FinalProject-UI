@@ -1,8 +1,12 @@
 # Feature modules
 
-Add a module when its implementation exists. Planned domains are auth, users,
-profiles, posts, comments, likes, reposts, follows, bookmarks, polls, search,
-and media. No backend contract is currently present in this checkout.
+Implemented domains are `auth`, `content` (posts, comments, reactions, composer,
+polls, media), `profiles` (users and follows), `discovery` (search, recommendations,
+trends), `scheduling`, `moderation` (reports and administration), and `preferences`.
+Public `index.ts` entries expose feature capabilities. Separate `mapping.ts`
+entries expose DTO transformations without loading UI modules.
+The backend contract is verified against the local ASP.NET Core README,
+controllers, request/response DTOs, and session services.
 
 Each module owns its API functions, query keys, hooks, components, types, and
 validation. Create only the directories it uses. Keep request paths and backend
